@@ -1,5 +1,4 @@
 name: Rollback Deployment
-
 on:
   workflow_dispatch:
     inputs:
@@ -13,27 +12,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup kubectl
+      # Kubernetes tools ke liye zaroori
       uses: azure/setup-kubectl@v3
       with:
         version: 'v1.28.0'
-
-    - name: Configure kubectl
+        
+    - name: Configure kubectl from Secret
+      # Yeh step Secret se Kubeconfig ko fetch, decode, aur save karta hai
       run: |
+        # Kubeconfig file ke liye directory banao
         mkdir -p $HOME/.kube
+        # Secret (jo Base64 encoded hoga) ko decode karke config file banao
+        # Agar aapka secret Base64 encoded nahi hai, toh '| base64 -d' hata dein.
         echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+        # File permissions ko theek karo (security best practice)
+        chmod 600 $HOME/.kube/config
+        
+    - name: Check Kubeconfig (Optional Debug)
+      # Agar zarurat ho toh connection test karein
+      run: |
+        kubectl cluster-info
 
     - name: Rollback deployment
       run: |
         if [ -n "${{ github.event.inputs.revision }}" ]; then
+          # Specific revision par rollback
           kubectl rollout undo deployment/cicd-app --to-revision=${{ github.event.inputs.revision }}
         else
+          # Pichli revision par rollback (default)
           kubectl rollout undo deployment/cicd-app
         fi
-
+        
     - name: Wait for rollback completion
       run: |
         kubectl rollout status deployment/cicd-app --timeout=300s
-
+        
     - name: Verify rollback
       run: |
         kubectl get pods -l app=cicd-app

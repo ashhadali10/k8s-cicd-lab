@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: cicd-app
-        image: cicd-app:latest
+        image: cicd-app:v1.0.0
+        imagePullPolicy: Never
         ports:
         - containerPort: 3000
         env:
